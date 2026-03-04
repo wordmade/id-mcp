@@ -1,0 +1,94 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Build
+        run: go build -o bin/id-mcp ./cmd/id-mcp/
+
+      - name: Test
+        run: go test ./...
+
+      - name: Verify --version flag
+        run: ./bin/id-mcp --version
+
+  verify:
+    name: Verify Structure
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify required files
+        run: |
+          echo "Checking required files..."
+          test -f cmd/id-mcp/main.go || { echo "Missing cmd/id-mcp/main.go"; exit 1; }
+          test -f internal/mcpserver/client.go || { echo "Missing internal/mcpserver/client.go"; exit 1; }
+          test -f internal/mcpserver/server.go || { echo "Missing internal/mcpserver/server.go"; exit 1; }
+          test -f internal/mcpserver/tools.go || { echo "Missing internal/mcpserver/tools.go"; exit 1; }
+          test -f internal/mcpserver/resources.go || { echo "Missing internal/mcpserver/resources.go"; exit 1; }
+          test -f README.md || { echo "Missing README.md"; exit 1; }
+          test -f LICENSE || { echo "Missing LICENSE"; exit 1; }
+          test -f Makefile || { echo "Missing Makefile"; exit 1; }
+          echo "All required files present."
+
+      - name: Scan for infrastructure leaks
+        run: |
+          echo "Scanning for infrastructure references that should not be public..."
+          FAILED=0
+
+          if grep -rn 'docs/architecture/\|sources/internal/\|huru-io\|localhost:[0-9]\|stack[0-9]\|/home/\|\.claude/team' \
+            cmd/ internal/ README.md CLAUDE.md Makefile 2>/dev/null; then
+            echo "ERROR: Found infrastructure references."
+            FAILED=1
+          fi
+
+          if [ "$FAILED" = "1" ]; then
+            echo "These must be removed before publishing."
+            exit 1
+          fi
+          echo "No infrastructure leaks found. Clean."
+
+      - name: Scan for personal identity leaks
+        run: |
+          echo "Scanning for personal identity references..."
+          FAILED=0
+
+          if grep -rni 'jota\|edovale\|garcia\|@huru\.io' \
+            cmd/ internal/ README.md CLAUDE.md Makefile 2>/dev/null; then
+            echo "ERROR: Found personal identity references."
+            FAILED=1
+          fi
+
+          if [ "$FAILED" = "1" ]; then
+            echo "These must be removed before publishing."
+            exit 1
+          fi
+          echo "No personal identity leaks found. Clean."
+
+      - name: Verify no private module imports
+        run: |
+          echo "Checking for private module imports..."
+          if grep -rn 'github.com/wordmade/id/' cmd/ internal/ go.mod 2>/dev/null; then
+            echo "ERROR: Found imports from private wordmade/id module."
+            echo "Public repo must use github.com/wordmade/id-mcp/ as module path."
+            exit 1
+          fi
+          echo "No private module imports. Clean."

@@ -1,0 +1,24 @@
+# Build artifacts
+bin/
+dist/
+
+# Go
+vendor/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Credentials (never commit)
+credentials.json
+*.pem
+*.key
+
+# Claude Code local state
+.claude/
