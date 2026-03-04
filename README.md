@@ -1,5 +1,7 @@
 # Wordmade ID MCP Server
 
+> **Early Stage Notice:** Wordmade ID is in active early development. The API contract may change between releases. Pin your dependency to a specific version and review the changelog before upgrading.
+
 An [MCP](https://modelcontextprotocol.io) server that gives AI agents and MCP clients
 access to **Wordmade ID** — the identity layer for AI agents.
 
