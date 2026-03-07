@@ -14,7 +14,8 @@ func NewMCPServer(client *IDClient, version string) *server.MCPServer {
 		server.WithResourceCapabilities(false, false),
 		server.WithInstructions("Wordmade ID — the identity layer for AI agents. "+
 			"Use these tools to look up agents, search the directory, verify identity tokens, "+
-			"register new agents, issue JWT tokens, and manage agent profiles."),
+			"register new agents, issue JWT tokens, manage profiles, skills, custom fields, "+
+			"private metadata, sessions, key rotation, recovery, and browse the A2A registry."),
 	)
 
 	h := &handlers{client: client}
@@ -147,6 +148,268 @@ func registerTools(s *server.MCPServer, h *handlers) {
 			mcp.Description("Replace capability list entirely.")),
 		mcp.WithDestructiveHintAnnotation(true),
 	), h.agentProfile)
+
+	// -----------------------------------------------------------------
+	// Skills
+	// -----------------------------------------------------------------
+
+	s.AddTool(mcp.NewTool("agent_skills",
+		mcp.WithDescription("List all skills for an agent. Public — no authentication required."),
+		mcp.WithString("uuid",
+			mcp.Required(),
+			mcp.Description("The agent's UUID.")),
+		mcp.WithReadOnlyHintAnnotation(true),
+	), h.agentListSkills)
+
+	s.AddTool(mcp.NewTool("agent_add_skill",
+		mcp.WithDescription("Add a skill to the agent's profile. Requires the agent's API key."),
+		mcp.WithString("uuid",
+			mcp.Required(),
+			mcp.Description("The agent's UUID.")),
+		mcp.WithString("api_key",
+			mcp.Required(),
+			mcp.Description("The agent's API key (iak_* or ias_*).")),
+		mcp.WithString("id",
+			mcp.Required(),
+			mcp.Description("Skill ID (lowercase, hyphens, e.g. 'code-review').")),
+		mcp.WithString("name",
+			mcp.Required(),
+			mcp.Description("Human-readable skill name.")),
+		mcp.WithString("description",
+			mcp.Description("What this skill does.")),
+		mcp.WithArray("tags",
+			mcp.Description("Tags for discoverability (e.g. ['go', 'python']).")),
+		mcp.WithArray("examples",
+			mcp.Description("Example prompts or use cases.")),
+		mcp.WithDestructiveHintAnnotation(true),
+	), h.agentAddSkill)
+
+	s.AddTool(mcp.NewTool("agent_delete_skill",
+		mcp.WithDescription("Remove a skill from the agent's profile. Requires the agent's API key."),
+		mcp.WithString("uuid",
+			mcp.Required(),
+			mcp.Description("The agent's UUID.")),
+		mcp.WithString("api_key",
+			mcp.Required(),
+			mcp.Description("The agent's API key (iak_* or ias_*).")),
+		mcp.WithString("skill_id",
+			mcp.Required(),
+			mcp.Description("ID of the skill to remove.")),
+		mcp.WithDestructiveHintAnnotation(true),
+	), h.agentDeleteSkill)
+
+	// -----------------------------------------------------------------
+	// Custom Fields
+	// -----------------------------------------------------------------
+
+	s.AddTool(mcp.NewTool("agent_custom_fields",
+		mcp.WithDescription("List all custom fields on the agent's public profile. "+
+			"Requires the agent's API key."),
+		mcp.WithString("uuid",
+			mcp.Required(),
+			mcp.Description("The agent's UUID.")),
+		mcp.WithString("api_key",
+			mcp.Required(),
+			mcp.Description("The agent's API key (iak_* or ias_*).")),
+		mcp.WithReadOnlyHintAnnotation(true),
+	), h.agentListCustomFields)
+
+	s.AddTool(mcp.NewTool("agent_set_custom_field",
+		mcp.WithDescription("Set a custom field on the agent's public profile. "+
+			"Use well-known keys (website, twitter, github, etc.) for best visibility. "+
+			"Requires the agent's API key."),
+		mcp.WithString("uuid",
+			mcp.Required(),
+			mcp.Description("The agent's UUID.")),
+		mcp.WithString("api_key",
+			mcp.Required(),
+			mcp.Description("The agent's API key (iak_* or ias_*).")),
+		mcp.WithString("key",
+			mcp.Required(),
+			mcp.Description("Field key (1-64 chars, lowercase alphanumeric + hyphens/underscores).")),
+		mcp.WithString("value",
+			mcp.Required(),
+			mcp.Description("Field value (max 512 chars).")),
+		mcp.WithDestructiveHintAnnotation(true),
+	), h.agentSetCustomField)
+
+	s.AddTool(mcp.NewTool("agent_delete_custom_field",
+		mcp.WithDescription("Remove a custom field from the agent's public profile. "+
+			"Requires the agent's API key."),
+		mcp.WithString("uuid",
+			mcp.Required(),
+			mcp.Description("The agent's UUID.")),
+		mcp.WithString("api_key",
+			mcp.Required(),
+			mcp.Description("The agent's API key (iak_* or ias_*).")),
+		mcp.WithString("key",
+			mcp.Required(),
+			mcp.Description("Key of the custom field to remove.")),
+		mcp.WithDestructiveHintAnnotation(true),
+	), h.agentDeleteCustomField)
+
+	s.AddTool(mcp.NewTool("well_known_fields",
+		mcp.WithDescription("List all recognized custom field keys with their categories "+
+			"and rendering hints. Public — no authentication required. Use these keys "+
+			"when setting custom fields for best discoverability."),
+		mcp.WithReadOnlyHintAnnotation(true),
+	), h.agentWellKnownFields)
+
+	// -----------------------------------------------------------------
+	// Private Metadata
+	// -----------------------------------------------------------------
+
+	s.AddTool(mcp.NewTool("agent_private_metadata",
+		mcp.WithDescription("List all private metadata keys and values. Private metadata is "+
+			"encrypted at rest (AES-256-GCM) and only accessible by the agent itself. "+
+			"Requires the agent's API key."),
+		mcp.WithString("uuid",
+			mcp.Required(),
+			mcp.Description("The agent's UUID.")),
+		mcp.WithString("api_key",
+			mcp.Required(),
+			mcp.Description("The agent's API key (iak_* or ias_*).")),
+		mcp.WithReadOnlyHintAnnotation(true),
+	), h.agentListPrivateMetadata)
+
+	s.AddTool(mcp.NewTool("agent_get_private",
+		mcp.WithDescription("Get a single private metadata value. Requires the agent's API key."),
+		mcp.WithString("uuid",
+			mcp.Required(),
+			mcp.Description("The agent's UUID.")),
+		mcp.WithString("api_key",
+			mcp.Required(),
+			mcp.Description("The agent's API key (iak_* or ias_*).")),
+		mcp.WithString("key",
+			mcp.Required(),
+			mcp.Description("The metadata key to retrieve.")),
+		mcp.WithReadOnlyHintAnnotation(true),
+	), h.agentGetPrivate)
+
+	s.AddTool(mcp.NewTool("agent_set_private",
+		mcp.WithDescription("Set a private metadata value. Stored encrypted at rest. "+
+			"Requires the agent's API key."),
+		mcp.WithString("uuid",
+			mcp.Required(),
+			mcp.Description("The agent's UUID.")),
+		mcp.WithString("api_key",
+			mcp.Required(),
+			mcp.Description("The agent's API key (iak_* or ias_*).")),
+		mcp.WithString("key",
+			mcp.Required(),
+			mcp.Description("Metadata key (1-64 chars, lowercase alphanumeric + hyphens/underscores).")),
+		mcp.WithString("value",
+			mcp.Required(),
+			mcp.Description("Metadata value (max 4096 chars).")),
+		mcp.WithDestructiveHintAnnotation(true),
+	), h.agentSetPrivate)
+
+	s.AddTool(mcp.NewTool("agent_delete_private",
+		mcp.WithDescription("Delete a private metadata key. Requires the agent's API key."),
+		mcp.WithString("uuid",
+			mcp.Required(),
+			mcp.Description("The agent's UUID.")),
+		mcp.WithString("api_key",
+			mcp.Required(),
+			mcp.Description("The agent's API key (iak_* or ias_*).")),
+		mcp.WithString("key",
+			mcp.Required(),
+			mcp.Description("The metadata key to delete.")),
+		mcp.WithDestructiveHintAnnotation(true),
+	), h.agentDeletePrivate)
+
+	// -----------------------------------------------------------------
+	// Sessions
+	// -----------------------------------------------------------------
+
+	s.AddTool(mcp.NewTool("agent_create_session",
+		mcp.WithDescription("Create a short-lived session token (ias_, 30 min TTL). "+
+			"Requires an iak_ API key — session tokens cannot create sessions. "+
+			"The returned ias_ token can be used for all agent operations."),
+		mcp.WithString("api_key",
+			mcp.Required(),
+			mcp.Description("The agent's permanent API key (iak_* only).")),
+	), h.agentCreateSession)
+
+	s.AddTool(mcp.NewTool("agent_revoke_session",
+		mcp.WithDescription("Revoke the current session (logout). Accepts iak_ or ias_ keys."),
+		mcp.WithString("api_key",
+			mcp.Required(),
+			mcp.Description("The agent's API key (iak_* or ias_*).")),
+		mcp.WithDestructiveHintAnnotation(true),
+	), h.agentRevokeSession)
+
+	// -----------------------------------------------------------------
+	// Key Rotation
+	// -----------------------------------------------------------------
+
+	s.AddTool(mcp.NewTool("agent_rotate_key",
+		mcp.WithDescription("Rotate the agent's API key. Generates a new iak_ key and revokes "+
+			"ALL existing keys and sessions. The new key is shown ONCE — store it securely. "+
+			"Requires the current iak_ key."),
+		mcp.WithString("uuid",
+			mcp.Required(),
+			mcp.Description("The agent's UUID.")),
+		mcp.WithString("api_key",
+			mcp.Required(),
+			mcp.Description("The agent's current API key (iak_* only).")),
+		mcp.WithDestructiveHintAnnotation(true),
+	), h.agentRotateKey)
+
+	// -----------------------------------------------------------------
+	// Recovery
+	// -----------------------------------------------------------------
+
+	s.AddTool(mcp.NewTool("agent_recover",
+		mcp.WithDescription("Initiate API key recovery. Sends a recovery token to the agent's "+
+			"registered recovery email. Requires a fresh CertGate pass as proof of AI nature."),
+		mcp.WithString("cert_token",
+			mcp.Required(),
+			mcp.Description("CertGate pass (wmn_*) or certificate (wmc_*) token.")),
+		mcp.WithString("handle",
+			mcp.Description("Agent handle (provide handle or uuid).")),
+		mcp.WithString("uuid",
+			mcp.Description("Agent UUID (provide handle or uuid).")),
+	), h.agentRecover)
+
+	s.AddTool(mcp.NewTool("agent_recover_confirm",
+		mcp.WithDescription("Complete API key recovery. Provide the recovery token from email "+
+			"and a fresh CertGate pass. Returns new API key (shown ONCE — store it securely). "+
+			"All previous keys are revoked."),
+		mcp.WithString("recovery_token",
+			mcp.Required(),
+			mcp.Description("The recovery token received by email.")),
+		mcp.WithString("cert_token",
+			mcp.Required(),
+			mcp.Description("Fresh CertGate pass (wmn_*) or certificate (wmc_*) token.")),
+		mcp.WithDestructiveHintAnnotation(true),
+	), h.agentRecoverConfirm)
+
+	// -----------------------------------------------------------------
+	// Registry
+	// -----------------------------------------------------------------
+
+	s.AddTool(mcp.NewTool("agent_registry",
+		mcp.WithDescription("Browse the A2A agent card registry. Returns paginated agent cards "+
+			"with skills, contact info, and world presences. Supports filtering and search."),
+		mcp.WithString("q",
+			mcp.Description("Free-text search across names, handles, bios.")),
+		mcp.WithString("skill",
+			mcp.Description("Filter by skill ID.")),
+		mcp.WithString("tag",
+			mcp.Description("Filter by skill tag.")),
+		mcp.WithString("level",
+			mcp.Description("Filter by verification level: certified, pro-verified, fleet.")),
+		mcp.WithNumber("min_trust",
+			mcp.Description("Minimum trust score (0-100).")),
+		mcp.WithString("sort",
+			mcp.Description("Sort: 'trust_score' (default), 'joined', 'name'.")),
+		mcp.WithNumber("page",
+			mcp.Description("Page number (1-based). Default: 1.")),
+		mcp.WithNumber("per_page",
+			mcp.Description("Results per page (1-100). Default: 20.")),
+		mcp.WithReadOnlyHintAnnotation(true),
+	), h.agentRegistry)
 }
 
 // registerResources adds MCP resources to the server.
