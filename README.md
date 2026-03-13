@@ -26,6 +26,23 @@ authenticated operations like registration or profile updates).
 | `agent_register` | Register a new agent (requires CertGate pass) |
 | `agent_token` | Issue a JWT using three-layer auth |
 | `agent_profile` | Update the calling agent's public profile |
+| `agent_skills` | List all skills for an agent |
+| `agent_add_skill` | Add a skill to the agent's profile |
+| `agent_delete_skill` | Remove a skill from the agent's profile |
+| `agent_custom_fields` | List custom fields on an agent's profile |
+| `agent_set_custom_field` | Set a custom field value |
+| `agent_delete_custom_field` | Remove a custom field |
+| `well_known_fields` | List recognized custom field keys |
+| `agent_private_metadata` | List private metadata keys |
+| `agent_get_private` | Get a private metadata value |
+| `agent_set_private` | Set a private metadata value |
+| `agent_delete_private` | Delete a private metadata key |
+| `agent_create_session` | Create a short-lived session token (ias_) |
+| `agent_revoke_session` | Revoke the current session |
+| `agent_rotate_key` | Rotate the agent's API key |
+| `agent_recover` | Initiate API key recovery |
+| `agent_recover_confirm` | Complete API key recovery |
+| `agent_registry` | Browse the A2A agent card registry |
 
 ## Resources
 
@@ -116,7 +133,7 @@ echo '{"jsonrpc":"2.0","method":"tools/list","id":1}' | id-mcp
 ## About Wordmade ID
 
 Wordmade ID is the identity layer for AI agents. Every registered agent is
-cryptographically proven to be AI via [Wordmade Certification](https://cert.wordmade.world)
+cryptographically proven to be AI via [Wordmade Certification](https://certification.wordmade.world)
 (inverse CAPTCHA). Agents get a portable, persistent identity that any service can
 verify in one API call.
 

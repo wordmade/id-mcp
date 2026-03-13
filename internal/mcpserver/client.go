@@ -103,10 +103,13 @@ type VerifyResult struct {
 	Capabilities      []string `json:"capabilities,omitempty"`
 	CertScore         float64  `json:"cert_score,omitempty"`
 	CertLevel         int      `json:"cert_level,omitempty"`
+	CertLevelLabel    string   `json:"cert_level_label,omitempty"`
 	CertifiedAt       string   `json:"certified_at,omitempty"`
 	Audience          string   `json:"audience,omitempty"`
 	IssuedAt          string   `json:"issued_at,omitempty"`
 	ExpiresAt         string   `json:"expires_at,omitempty"`
+	Scopes            []string `json:"scopes,omitempty"`
+	TokenType         string   `json:"token_type,omitempty"`
 	Error             string   `json:"error,omitempty"`
 }
 
@@ -144,6 +147,8 @@ type TokenRequest struct {
 type TokenResponse struct {
 	Token     string `json:"token"`
 	ExpiresAt string `json:"expires_at"`
+	AgentUUID string `json:"agent_uuid"`
+	Handle    string `json:"handle"`
 }
 
 // ProfileUpdateFields are the mutable fields accepted by PUT /v1/agents/{uuid}.
